@@ -1,0 +1,1 @@
+ffmpeg -framerate 10 -i output/%02d.png -vcodec libx264  -framerate 10 output/result.mp4

@@ -7,11 +7,12 @@ from scipy.optimize import minimize
 
 
 camera_num = 30
-domain = Polygon([[0, 0], [1, 0], [1, 1], [0, 1]])
+domain = [[0, 0], [1, 0], [1, 1], [0, 1]]
 
 r = np.ones((camera_num, 1))
 for i in range(camera_num):
-    r[i] = (1 + i % 3) * 0.1
+    # r[i] = (1 + i % 3) * 0.1
+    r[i] = 0
 
 
 S = np.zeros((camera_num, 1))
@@ -21,34 +22,33 @@ C = np.zeros((camera_num, 2))
 def F(X):
     global domain
     pts = np.reshape(X, (camera_num, 2))
-    extra = np.array([[100, 100], [100, -100], [-100, 0]])
-    np.vstack((pts, extra))
+    pts = np.vstack((pts, domain))
     vor = Voronoi(pts)
     ret = 0.0
     for i in range(camera_num):
-        poly_cell = Polygon([vor.vertices[v]
-                             for v in vor.regions[vor.point_region[i]]])
-        i_cell = domain.intersection(poly_cell)  # trim cell by domain
+        poly_verts = [vor.vertices[v] for v in vor.regions[vor.point_region[i]]]
+        i_cell = Polygon(domain).intersection(Polygon(poly_verts))  # trim cell by domain
         S[i] = i_cell.area
-        print("i: {}, centroid: {}".format(i, i_cell.centroid.coords[0]))
         C[i] = i_cell.centroid.coords[0]
-        # print("i: {}, C: {}".format(i, C[i]))
 
-        subsets = Delaunay(list(poly_cell.exterior.coords))
+        subsets = Delaunay(list(i_cell.exterior.coords))
         for j in range(len(subsets.simplices)):
             element = Polygon(subsets.points[index]
                               for index in subsets.simplices[j])
             s = element.area
             c = Point(element.centroid.coords[0])
             d = c.distance(Point(pts[i]))
-            ret += s * d * d / (r[i] + 1)
+            ret += s * d * d
+        ret /= (r[i] + 1)
     return ret
 
 
 def G(X):
     ret = np.zeros((camera_num, 2))
+    pts = np.reshape(X, (camera_num, 2))
+    pts = np.vstack((pts, domain))
     for i in range(camera_num):
-        ret[i] = 2 * S[i] * (X[i] - C[i]) / (r[i] + 1)
+        ret[i] = 2 * S[i] * (pts[i] - C[i]) / (r[i] + 1)
     return ret.flatten()
 
 
@@ -61,14 +61,13 @@ def cbf(X):
     plt.cla()
 
     pts = np.reshape(X, (camera_num, 2))
-    extra = np.array([[100, 100], [100, -100], [-100, 0]])
-    np.vstack((pts, extra))
+    pts = np.vstack((pts, domain))
     voronoi_plot_2d(Voronoi(pts), ax=plt.gca(), show_vertices=False)
 
     plt.gca().set_aspect('equal')
     plt.gca().set_xlim([0, 1])
     plt.gca().set_ylim([0, 1])
-    plt.savefig('output/' + str(i).zfill(2) + '.png', bbox_inches='tight')
+    plt.savefig('output/' + str(count).zfill(2) + '.png', bbox_inches='tight')
     count += 1
 
 
